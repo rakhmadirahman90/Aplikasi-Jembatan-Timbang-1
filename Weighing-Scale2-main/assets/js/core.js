@@ -145,18 +145,20 @@ var Skill = {
                 }
             }
 
-            $menuItem.on('click', function(){
-                if($(this).attr('href').indexOf('#') != -1 && !$(this).parent('li').hasClass('has-children') &&!$(this).hasClass('go-back')) {
+            $menuItem.on('click', function(e){
+                if($(this).attr('href') && $(this).attr('href').indexOf('#') != -1 && !$(this).parent('li').hasClass('has-children') &&!$(this).hasClass('go-back')) {
                     $body.removeClass('mobile-nav-open');
                     $mobileNavToggle.removeClass('open');
                     var target = $(this).attr("href"); // Get the target element
-                    var scrollToPosition = $(target).offset().top; // Position to scroll to
-                    $('html /* For FF & IE */,body /* For Chrome */').animate({
-                        'scrollTop': scrollToPosition
-                    }, 700, function (target) {
-                        window.location.hash = target;
-                    });
-                    e.preventDefault();
+                    if (target && $(target).length) {
+                        var scrollToPosition = $(target).offset().top; // Position to scroll to
+                        $('html /* For FF & IE */,body /* For Chrome */').animate({
+                            'scrollTop': scrollToPosition
+                        }, 700, function () {
+                            window.location.hash = target;
+                        });
+                    }
+                    if (e && typeof e.preventDefault === 'function') e.preventDefault();
                     return false;
                 }
             });

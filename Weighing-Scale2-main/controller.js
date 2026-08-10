@@ -1,3 +1,9 @@
+(function (window) {
+  'use strict';
+  window.app = window.app || {};
+
+  function Controller() {}
+
   Controller.prototype._getCurrentPage = function () {
     return document.location.hash.split('/')[1];
   };
