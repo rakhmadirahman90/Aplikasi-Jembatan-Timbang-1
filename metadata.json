@@ -1,0 +1,8 @@
+{
+  "name": "Aplikasi Jembatan Timbang",
+  "description": "Sistem Aplikasi Timbangan / Weighing Scale System PT KRNG Indonesia",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
