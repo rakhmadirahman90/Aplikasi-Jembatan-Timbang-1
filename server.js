@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -40,35 +41,26 @@ let kpccList = [
   { id: 1, no_record: 'KPCC-2026-0500', nama_vendor: 'PT.SMI', nomor_polisi: 'B 8899 KR', nama_sopir: 'Bambang', sopir: 'Bambang', tgl_masuk: '2026-08-09 09:15:20', tara: '11200', bruto: '', netto: '' }
 ];
 
-// Helper for API responses
 const setupApiRoutes = (prefix) => {
-  // Timbangan Record counter
   app.get(`${prefix}/timbangan/record`, (req, res) => {
     res.json({ id_timbang: `REC-2026-0${recordCounter}` });
   });
 
-  // Timbangan List Timbang Kosong
   app.get(`${prefix}/timbangan/timbang`, (req, res) => {
     res.json(timbangList);
   });
 
-  // Get single record detail
   app.get(`${prefix}/timbangan/lama/record/`, (req, res) => {
     const recordCode = req.query.record;
     const found = timbangList.find(item => item.no_record === recordCode || item.id == recordCode);
-    if (found) {
-      res.json(found);
-    } else {
-      res.status(404).json({ message: 'Record tidak ditemukan' });
-    }
+    if (found) res.json(found);
+    else res.status(404).json({ message: 'Record tidak ditemukan' });
   });
 
-  // Save Timbang Kosong
   app.post(`${prefix}/timbangan/hasil`, (req, res) => {
     const { kode, id_mobil, id_driver, tgl_masuk, tara, bruto, netto } = req.body;
     const carObj = cars[id_mobil] || { kode_tank: 'TANK-XX', nomor_polisi: 'B ' + (req.body.no_polisi || '9999 XX') };
     const driverObj = drivers[id_driver] || { sopir: req.body.sopir || 'Driver General' };
-
     const newItem = {
       id: timbangList.length + 1,
       no_record: kode || `REC-2026-0${recordCounter++}`,
@@ -84,13 +76,11 @@ const setupApiRoutes = (prefix) => {
       bruto: bruto || '',
       netto: netto || ''
     };
-
     timbangList.unshift(newItem);
     recordCounter++;
     res.json({ kode: newItem.no_record, message: 'Data Timbang Kosong Berhasil Disimpan' });
   });
 
-  // Save Timbang Isi / Netto
   app.post(`${prefix}/timbangan/netto`, (req, res) => {
     const { id, bruto, netto, kode } = req.body;
     const found = timbangList.find(item => item.id == id || item.no_record === kode);
@@ -103,37 +93,31 @@ const setupApiRoutes = (prefix) => {
     }
   });
 
-  // Scan Driver Card
   app.get(`${prefix}/timbangan/driver/`, (req, res) => {
     const nomor = req.query.nomor;
     const driver = drivers[nomor] || { id_sopir: '101', sopir: nomor || 'Supardi' };
     res.json(driver);
   });
 
-  // Scan Car Card
   app.get(`${prefix}/timbangan/car/`, (req, res) => {
     const nomor = req.query.nomor;
     const car = cars[nomor] || { id_car: '201', kode_tank: nomor || 'TANK-01', nomor_polisi: 'B 9123 KR', status_tank: 'Ready' };
     res.json(car);
   });
 
-  // User Lookup
   app.get(`${prefix}/data/users`, (req, res) => {
     const id = req.query.id;
     res.json({ name: drivers[id]?.sopir || id || 'Operator' });
   });
 
-  // KPCC Record Counter
   app.get(`${prefix}/kpcc/record`, (req, res) => {
     res.json({ no_record: `KPCC-2026-0${kpccRecordCounter}` });
   });
 
-  // KPCC List
   app.get(`${prefix}/kpcc/timbang`, (req, res) => {
     res.json(kpccList);
   });
 
-  // KPCC Save Hasil
   app.post(`${prefix}/kpcc/hasil`, (req, res) => {
     const { vendor, nopol, driver, tara } = req.body;
     const newItem = {
@@ -152,18 +136,13 @@ const setupApiRoutes = (prefix) => {
     res.json({ kode: newItem.no_record, message: 'Data Timbang Kosong KPCC Berhasil Disimpan' });
   });
 
-  // KPCC Single Record
   app.get(`${prefix}/kpcc/lama/record/`, (req, res) => {
     const recordCode = req.query.record;
     const found = kpccList.find(item => item.no_record === recordCode || item.id == recordCode);
-    if (found) {
-      res.json(found);
-    } else {
-      res.status(404).json({ message: 'Record KPCC tidak ditemukan' });
-    }
+    if (found) res.json(found);
+    else res.status(404).json({ message: 'Record KPCC tidak ditemukan' });
   });
 
-  // KPCC Netto Save
   app.post(`${prefix}/kpcc/netto`, (req, res) => {
     const { kode, bruto, netto } = req.body;
     const found = kpccList.find(item => item.no_record === kode);
@@ -175,19 +154,24 @@ const setupApiRoutes = (prefix) => {
   });
 };
 
-// Register API routes under /api and /API/api
 setupApiRoutes('/api');
 setupApiRoutes('/API/api');
 
-// Serve static assets
 const publicDir = path.join(__dirname, 'Weighing-Scale2-main');
 app.use(express.static(publicDir));
 app.use('/assets', express.static(path.join(publicDir, 'assets')));
 app.use('/images', express.static(path.join(publicDir, 'images')));
 
-// Fallback for root route
+// Inject the real GST-9700 Web Serial bridge into the legacy weighing page.
+// This intentionally happens server-side so the integration is always loaded.
 app.get('/', (req, res) => {
-  res.sendFile(path.join(publicDir, 'window.html'));
+  const htmlPath = path.join(publicDir, 'window.html');
+  let html = fs.readFileSync(htmlPath, 'utf8');
+  const scriptTag = '<script src="/gst9700-webserial.js"></script>';
+  if (!html.includes('/gst9700-webserial.js')) {
+    html = html.replace('</head>', `${scriptTag}\n</head>`);
+  }
+  res.type('html').send(html);
 });
 
 app.listen(PORT, '0.0.0.0', () => {
